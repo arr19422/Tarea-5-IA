@@ -1,83 +1,85 @@
 from game import *
+from generate import *
+from restringed import restringed_places
 
-def generate_training_data(display, clock):
-    training_data_x = []
-    training_data_y = []
-    training_games = 200
-    steps_per_game = 2000
+def gen_training_data(display, clock):
+    train_x = []
+    train_y = []
+    train_games = 1000
+    stepsxround = 2000
 
-    for _ in tqdm(range(training_games)):
-        snake_start, snake_position, apple_position, score = starting_positions()
-        prev_apple_distance = apple_distance_from_snake(apple_position, snake_position)
+    for _ in tqdm(range(train_games)):
+        snake_start, snake_place, food_position, score = starting_places()
+        prev_food_place = food_lenght_from_snake(food_position, snake_place)
 
-        for _ in range(steps_per_game):
-            angle, snake_direction_vector, apple_direction_vector_normalized, snake_direction_vector_normalized = angle_with_apple(
-                snake_position, apple_position)
-            direction, button_direction = generate_random_direction(snake_position, angle)
-            current_direction_vector, is_front_blocked, is_left_blocked, is_right_blocked = blocked_directions(
-                snake_position)
+        for _ in range(stepsxround):
+            angle, snake_place_vector, food_place_vector_normalized, snake_place_vector_normalized = angle_with_food(
+                snake_place, food_position)
+            place, controller = gen_random_place(snake_place, angle)
+            current_place_vector, front_restricted, left_restricted, right_restricted = restringed_places(
+                snake_place)
 
-            direction, button_direction, training_data_y = generate_training_data_y(snake_position, angle_with_apple,
-                                                                                    button_direction, direction,
-                                                                                    training_data_y, is_front_blocked,
-                                                                                    is_left_blocked, is_right_blocked)
+            place, controller, train_y = gen_train_y(snake_place, angle_with_food,
+                                                                                    controller, place,
+                                                                                    train_y, front_restricted,
+                                                                                    left_restricted, right_restricted)
 
-            if is_front_blocked == 1 and is_left_blocked == 1 and is_right_blocked == 1:
+            if front_restricted == 1 and left_restricted == 1 and right_restricted == 1:
                 break
 
-            training_data_x.append(
-                [is_left_blocked, is_front_blocked, is_right_blocked, apple_direction_vector_normalized[0], \
-                 snake_direction_vector_normalized[0], apple_direction_vector_normalized[1], \
-                 snake_direction_vector_normalized[1]])
+            train_x.append(
+                [left_restricted, front_restricted, right_restricted, food_place_vector_normalized[0], \
+                 snake_place_vector_normalized[0], food_place_vector_normalized[1], \
+                 snake_place_vector_normalized[1]])
 
-            snake_position, apple_position, score = play_game(snake_start, snake_position, apple_position,
-                                                              button_direction, score, display, clock)
+            snake_place, food_position, score = play_game(snake_start, snake_place, food_position,
+                                                              controller, score, display, clock)
 
-    return training_data_x, training_data_y
+    return train_x, train_y
 
 
-def generate_training_data_y(snake_position, angle_with_apple, button_direction, direction, training_data_y,
-                             is_front_blocked, is_left_blocked, is_right_blocked):
-    if direction == -1:
-        if is_left_blocked == 1:
-            if is_front_blocked == 1 and is_right_blocked == 0:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 1)
-                training_data_y.append([0, 0, 1])
-            elif is_front_blocked == 0 and is_right_blocked == 1:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 0)
-                training_data_y.append([0, 1, 0])
-            elif is_front_blocked == 0 and is_right_blocked == 0:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 1)
-                training_data_y.append([0, 0, 1])
+def gen_train_y(snake_place, angle_with_food, controller, place, train_y,
+                             front_restricted, left_restricted, right_restricted):
+    if place == -1:
+        if left_restricted == 1:
+            if front_restricted == 1 and right_restricted == 0:
+                place, controller = place_vector(snake_place, angle_with_food, 1)
+                train_y.append([0, 0, 1])
+            elif front_restricted == 0 and right_restricted == 1:
+                place, controller = place_vector(snake_place, angle_with_food, 0)
+                train_y.append([0, 1, 0])
+            elif front_restricted == 0 and right_restricted == 0:
+                place, controller = place_vector(snake_place, angle_with_food, 1)
+                train_y.append([0, 0, 1])
 
         else:
-            training_data_y.append([1, 0, 0])
+            train_y.append([1, 0, 0])
 
-    elif direction == 0:
-        if is_front_blocked == 1:
-            if is_left_blocked == 1 and is_right_blocked == 0:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 1)
-                training_data_y.append([0, 0, 1])
-            elif is_left_blocked == 0 and is_right_blocked == 1:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, -1)
-                training_data_y.append([1, 0, 0])
-            elif is_left_blocked == 0 and is_right_blocked == 0:
-                training_data_y.append([0, 0, 1])
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 1)
+    elif place == 0:
+        if front_restricted == 1:
+            if left_restricted == 1 and right_restricted == 0:
+                place, controller = place_vector(snake_place, angle_with_food, 1)
+                train_y.append([0, 0, 1])
+            elif left_restricted == 0 and right_restricted == 1:
+                place, controller = place_vector(snake_place, angle_with_food, -1)
+                train_y.append([1, 0, 0])
+            elif left_restricted == 0 and right_restricted == 0:
+                train_y.append([0, 0, 1])
+                place, controller = place_vector(snake_place, angle_with_food, 1)
         else:
-            training_data_y.append([0, 1, 0])
+            train_y.append([0, 1, 0])
     else:
-        if is_right_blocked == 1:
-            if is_left_blocked == 1 and is_front_blocked == 0:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, 0)
-                training_data_y.append([0, 1, 0])
-            elif is_left_blocked == 0 and is_front_blocked == 1:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, -1)
-                training_data_y.append([1, 0, 0])
-            elif is_left_blocked == 0 and is_front_blocked == 0:
-                direction, button_direction = direction_vector(snake_position, angle_with_apple, -1)
-                training_data_y.append([1, 0, 0])
+        if right_restricted == 1:
+            if left_restricted == 1 and front_restricted == 0:
+                place, controller = place_vector(snake_place, angle_with_food, 0)
+                train_y.append([0, 1, 0])
+            elif left_restricted == 0 and front_restricted == 1:
+                place, controller = place_vector(snake_place, angle_with_food, -1)
+                train_y.append([1, 0, 0])
+            elif left_restricted == 0 and front_restricted == 0:
+                place, controller = place_vector(snake_place, angle_with_food, -1)
+                train_y.append([1, 0, 0])
         else:
-            training_data_y.append([0, 0, 1])
+            train_y.append([0, 0, 1])
 
-    return direction, button_direction, training_data_y
+    return place, controller, train_y

@@ -1,71 +1,72 @@
 import tensorflow as tf
 from keras.backend import set_session
+from restringed import restringed_places
+from smashing import smashing_border, smashing_self
+from generate import angle_with_food, gen_controller
 config = tf.compat.v1.ConfigProto()
-config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
-config.log_device_placement = True  # to log device placement (on which device the operation ran)
-                                    # (nothing gets printed in Jupyter, only if you run it standalone)
+config.gpu_options.allow_growth = True  
+config.log_device_placement = True  
+                                    
 sess = tf.compat.v1.Session(config=config)
-set_session(sess)  # set this TensorFlow session as the default session for Keras
-
-
+set_session(sess) 
 
 from game import *
 from keras.models import model_from_json
 
-def run_game_with_ML(model, display, clock):
-    max_score = 3
-    avg_score = 0
+def run_game_with_ML(model, show, timer):
+    max_result = 3
+    avg_result = 0
     test_games = 5
     steps_per_game = 2000
 
     for _ in range(test_games):
-        snake_start, snake_position, apple_position, score = starting_positions()
+        snake_start, snake_place, food_place, result = starting_places()
 
-        count_same_direction = 0
-        prev_direction = 0
+        count_same_place = 0
+        prev_place = 0
 
         for _ in range(steps_per_game):
-            current_direction_vector, is_front_blocked, is_left_blocked, is_right_blocked = blocked_directions(
-                snake_position)
-            angle, snake_direction_vector, apple_direction_vector_normalized, snake_direction_vector_normalized = angle_with_apple(
-                snake_position, apple_position)
+            current_place_vector, front_restringed, left_restringed, right_restringed = restringed_places(
+                snake_place)
+            angle, snake_place_vector, food_place_vector_normalized, snake_place_vector_normalized = angle_with_food(
+                snake_place, food_place)
             predictions = []
 
-            predicted_direction = np.argmax(np.array(model.predict(np.array([is_left_blocked, is_front_blocked, \
-                                                                             is_right_blocked,
-                                                                             apple_direction_vector_normalized[0], \
-                                                                             snake_direction_vector_normalized[0],
-                                                                             apple_direction_vector_normalized[1], \
-                                                                             snake_direction_vector_normalized[
+            predicted_place = np.argmax(np.array(model.predict(np.array([left_restringed, front_restringed, \
+                                                                             right_restringed,
+                                                                             food_place_vector_normalized[0], \
+                                                                             snake_place_vector_normalized[0],
+                                                                             food_place_vector_normalized[1], \
+                                                                             snake_place_vector_normalized[
                                                                                  1]]).reshape(-1, 7)))) - 1
 
-            if predicted_direction == prev_direction:
-                count_same_direction += 1
+            if predicted_place == prev_place:
+                count_same_place += 1
             else:
-                count_same_direction = 0
-                prev_direction = predicted_direction
+                count_same_place = 0
+                prev_place = predicted_place
 
-            new_direction = np.array(snake_position[0]) - np.array(snake_position[1])
-            if predicted_direction == -1:
-                new_direction = np.array([new_direction[1], -new_direction[0]])
-            if predicted_direction == 1:
-                new_direction = np.array([-new_direction[1], new_direction[0]])
+            new_place = np.array(snake_place[0]) - np.array(snake_place[1])
+            if predicted_place == -1:
+                new_place = np.array([new_place[1], -new_place[0]])
+            if predicted_place == 1:
+                new_place = np.array([-new_place[1], new_place[0]])
 
-            button_direction = generate_button_direction(new_direction)
+            controller = gen_controller(new_place)
 
-            next_step = snake_position[0] + current_direction_vector
-            if collision_with_boundaries(snake_position[0]) == 1 or collision_with_self(next_step.tolist(),
-                                                                                        snake_position) == 1:
+            next_step = snake_place[0] + current_place_vector
+            if smashing_border(snake_place[0]) == 1 or smashing_self(next_step.tolist(),
+                                                                                        snake_place) == 1:
                 break
-            snake_position, apple_position, score = play_game(snake_start, snake_position, apple_position,
-                                                              button_direction, score, display, clock)
+            snake_place, food_place, result = play_game(snake_start, snake_place, food_place,
+                                                              controller, result, show, timer)
 
-            if score > max_score:
-                max_score = score
+            if result > max_result:
+                max_result = result
 
-        avg_score += score
+        avg_result += result
 
-    return max_score, avg_score / 5
+    return max_result, avg_result / 5
 
 
 json_file = open('model.json', 'r')
@@ -74,11 +75,11 @@ model = model_from_json(loaded_json_model)
 model.load_weights('model.h5')
 
 
-display_width = 500
-display_height = 500
+show_w = 500
+show_h = 500
 pygame.init()
-display=pygame.display.set_mode((display_width,display_height))
-clock=pygame.time.Clock()
-max_score, avg_score = run_game_with_ML(model,display,clock)
-print("Maximum score achieved is:  ", max_score)
-print("Average score achieved is:  ", avg_score)
+show=pygame.display.set_mode((show_w,show_h))
+timer=pygame.time.Clock()
+max_result, avg_result = run_game_with_ML(model,show,timer)
+print("Maximum result achieved is:  ", max_result)
+print("Average result achieved is:  ", avg_result)
